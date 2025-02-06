@@ -1,24 +1,22 @@
-# vue-frontend
+# Vue.js Frontend Project
 
-## Project setup
-```
-yarn install
-```
+This is a Vue.js frontend project created with Vue CLI. The project includes:
 
-### Compiles and hot-reloads for development
-```
-yarn serve
-```
+## Features
+- Vue.js 3.x
+- Vue Router
+- Modern JavaScript features
+- Development and production builds
+- Deployed version available at: https://vue-frontend-app-zjlvdrg0.devinapps.com
 
-### Compiles and minifies for production
-```
-yarn build
-```
-
-### Lints and fixes files
-```
-yarn lint
+## Setup
+```bash
+npm install
+npm run serve
 ```
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+## Build
+```bash
+npm run build
+```
+
