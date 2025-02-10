@@ -9,8 +9,6 @@ export class ConsumerService {
   private queueName: string;
   private channel: Channel | null = null;
   private suiClient: SuiClient;
-  // Valid Sui address format (32 bytes)
-  private readonly VALID_PARTNER_ADDRESS = "0x6f1b4d1c2e3b4a5d6c7b8a9f0e1d2c3b4a5d6c7b8a9f0e1d2c3b4a5d6c7b8a9f";
 
   // Constants for validation retry
   private readonly MAX_VALIDATION_RETRIES = 3;
@@ -43,12 +41,8 @@ export class ConsumerService {
       // Build transaction for validation
       const result = await buildTx({
         quoteResponse,
-        accountAddress: this.VALID_PARTNER_ADDRESS, // Use valid Sui address
-        slippage: 0.01, // 1% slippage as per SDK examples
-        commission: {
-          partner: this.VALID_PARTNER_ADDRESS,
-          commissionBps: 0,
-        },
+        accountAddress: "0x0000000000000000000000000000000000000000000000000000000000000000",
+        slippage: 0.01,
       });
 
       if (!result?.tx) {
@@ -59,9 +53,10 @@ export class ConsumerService {
       // Validate transaction using devInspectTransactionBlock
       const inspectResult = await this.suiClient.devInspectTransactionBlock({
         transactionBlock: result.tx,
-        sender: this.VALID_PARTNER_ADDRESS
+        sender: "0x0000000000000000000000000000000000000000000000000000000000000000"
       });
 
+      // Check if the transaction would be executable
       if (inspectResult.error) {
         console.error('[Consumer] Transaction validation failed:', inspectResult.error);
         return false;
