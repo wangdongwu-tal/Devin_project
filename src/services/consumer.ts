@@ -69,6 +69,40 @@ export class ConsumerService {
     }
   }
 
+  async startConsuming(messageHandler: (quoteResponse: QuoteResponse) => Promise<void>): Promise<void> {
+    if (!this.channel) {
+      throw new Error('Consumer not initialized. Call initialize() first.');
+    }
+
+    console.log(`[Consumer] Started listening on queue: ${this.queueName}`);
+
+    await this.channel.consume(this.queueName, async (msg: ConsumeMessage | null) => {
+      if (!msg) return;
+
+      try {
+        const content = JSON.parse(msg.content.toString()) as QuoteResponse;
+        console.log(`[Consumer] Received QuoteResponse:`, content);
+
+        // Validate the QuoteResponse using devInspectTransactionBlock
+        const isValid = await this.validateQuoteResponse(content);
+        
+        if (!isValid) {
+          console.error('[Consumer] QuoteResponse validation failed, rejecting message');
+          this.channel?.nack(msg, false, false); // Don't requeue invalid messages
+          return;
+        }
+
+        // Process the message if validation succeeds
+        await messageHandler(content);
+        this.channel?.ack(msg);
+      } catch (error) {
+        console.error('[Consumer] Error processing QuoteResponse:', error);
+        // Requeue on processing errors (not validation errors)
+        this.channel?.nack(msg, false, true);
+      }
+    });
+  }
+
   async close(): Promise<void> {
     await this.queueService.close();
   }
@@ -81,5 +115,6 @@ export async function createConsumer(
 ): Promise<ConsumerService> {
   const consumer = new ConsumerService(rabbitmqUrl, queueName);
   await consumer.initialize();
+  await consumer.startConsuming(messageHandler);
   return consumer;
 }
