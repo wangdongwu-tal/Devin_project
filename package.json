@@ -1,0 +1,29 @@
+{
+  "name": "message-queue-system",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start:producer": "ts-node src/producer.ts",
+    "start:consumer": "ts-node src/consumer.ts",
+    "dev:producer": "nodemon src/producer.ts",
+    "dev:consumer": "nodemon src/consumer.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/amqplib": "^0.10.4",
+    "@types/node": "^20.11.16",
+    "nodemon": "^3.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@7kprotocol/sdk-ts": "^2.3.4",
+    "@mysten/sui": "^1.21.2",
+    "amqplib": "^0.10.3",
+    "dotenv": "^16.4.1"
+  }
+}
