@@ -10,6 +10,10 @@ export class ConsumerService {
   private channel: Channel | null = null;
   private suiClient: SuiClient;
 
+  // Constants for validation retry
+  private readonly MAX_VALIDATION_RETRIES = 3;
+  private readonly VALIDATION_RETRY_DELAY = 1000; // ms
+
   constructor(rabbitmqUrl: string, queueName: string) {
     this.queueService = new MessageQueueService(rabbitmqUrl);
     this.queueName = queueName;
@@ -69,6 +73,33 @@ export class ConsumerService {
     }
   }
 
+  async retryValidation(quoteResponse: QuoteResponse): Promise<boolean> {
+    for (let i = 0; i < this.MAX_VALIDATION_RETRIES; i++) {
+      console.log(`[Consumer] Validation attempt ${i + 1}/${this.MAX_VALIDATION_RETRIES}`);
+      
+      try {
+        const isValid = await this.validateQuoteResponse(quoteResponse);
+        if (isValid) {
+          console.log('[Consumer] Validation succeeded on retry');
+          return true;
+        }
+        
+        if (i < this.MAX_VALIDATION_RETRIES - 1) {
+          console.log(`[Consumer] Waiting ${this.VALIDATION_RETRY_DELAY}ms before next retry`);
+          await new Promise(resolve => setTimeout(resolve, this.VALIDATION_RETRY_DELAY));
+        }
+      } catch (error) {
+        console.error(`[Consumer] Error during validation retry ${i + 1}:`, error);
+        if (i < this.MAX_VALIDATION_RETRIES - 1) {
+          await new Promise(resolve => setTimeout(resolve, this.VALIDATION_RETRY_DELAY));
+        }
+      }
+    }
+    
+    console.error('[Consumer] All validation retries failed');
+    return false;
+  }
+
   async startConsuming(messageHandler: (quoteResponse: QuoteResponse) => Promise<void>): Promise<void> {
     if (!this.channel) {
       throw new Error('Consumer not initialized. Call initialize() first.');
@@ -83,11 +114,11 @@ export class ConsumerService {
         const content = JSON.parse(msg.content.toString()) as QuoteResponse;
         console.log(`[Consumer] Received QuoteResponse:`, content);
 
-        // Validate the QuoteResponse using devInspectTransactionBlock
-        const isValid = await this.validateQuoteResponse(content);
+        // Validate the QuoteResponse with retries
+        const isValid = await this.retryValidation(content);
         
         if (!isValid) {
-          console.error('[Consumer] QuoteResponse validation failed, rejecting message');
+          console.error('[Consumer] QuoteResponse validation failed after retries, rejecting message');
           this.channel?.nack(msg, false, false); // Don't requeue invalid messages
           return;
         }
