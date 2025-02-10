@@ -6,7 +6,7 @@
     "build": "tsc",
     "start:producer": "ts-node src/producer.ts",
     "start:consumer": "ts-node src/consumer.ts",
-    "test:validation": "ts-node src/test-validation.ts"
+    "test:validation": "ts-node src/tests/test-validation.ts"
   },
   "keywords": [],
   "author": "",
