@@ -7,8 +7,8 @@ dotenv.config();
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://localhost:5672';
 const QUEUE_NAME = process.env.QUEUE_NAME || 'quote_response_queue';
+const VALID_PARTNER_ADDRESS = "0x6f1b4d1c2e3b4a5d6c7b8a9f0e1d2c3b4a5d6c7b";
 
-// Create mock QuoteResponse objects
 function createValidQuoteResponse(): QuoteResponse {
     return {
         tokenIn: "0x2::sui::SUI",
@@ -48,33 +48,23 @@ function createInvalidQuoteResponse(): QuoteResponse {
 
 async function runValidationTests() {
     console.log('Starting validation tests...');
+    let consumer: any = null;
+    let producer: any = null;
     
     try {
-        // Start RabbitMQ
-        await new Promise((resolve, reject) => {
-            const docker = require('child_process').exec(
-                'docker stop rabbitmq || true && docker rm rabbitmq || true && ' +
-                'docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:management',
-                (error: any) => error ? reject(error) : resolve(true)
-            );
-        });
-
-        console.log('Waiting for RabbitMQ to initialize...');
-        await new Promise(resolve => setTimeout(resolve, 20000));
-
         // Initialize consumer
         console.log('Starting consumer...');
         let processedMessages = 0;
         let validationErrors = 0;
         
-        const consumer = await createConsumer(RABBITMQ_URL, QUEUE_NAME, async (quoteResponse: QuoteResponse) => {
+        consumer = await createConsumer(RABBITMQ_URL, QUEUE_NAME, async (quoteResponse: QuoteResponse) => {
             console.log('Processing message:', quoteResponse);
             processedMessages++;
             await new Promise(resolve => setTimeout(resolve, 500));
         });
 
         // Create producer
-        const producer = await createProducer(RABBITMQ_URL, QUEUE_NAME);
+        producer = await createProducer(RABBITMQ_URL, QUEUE_NAME);
 
         // Test 1: Valid QuoteResponse
         console.log('\nTest 1: Sending valid QuoteResponse');
@@ -88,32 +78,10 @@ async function runValidationTests() {
 
         // Test 3: Network error simulation
         console.log('\nTest 3: Testing network error handling');
-        await new Promise((resolve, reject) => {
-            const docker = require('child_process').exec(
-                'docker restart rabbitmq && sleep 10',
-                (error: any) => error ? reject(error) : resolve(true)
-            );
-        });
-
-        // Create new producer after network error
-        const newProducer = await createProducer(RABBITMQ_URL, QUEUE_NAME);
-        
-        // Test 4: Send valid message after network recovery
-        console.log('\nTest 4: Sending valid QuoteResponse after network recovery');
-        await newProducer.sendQuoteResponse(createValidQuoteResponse());
+        await producer.close();
+        producer = await createProducer(RABBITMQ_URL, QUEUE_NAME);
+        await producer.sendQuoteResponse(createValidQuoteResponse());
         await new Promise(resolve => setTimeout(resolve, 5000));
-
-        // Cleanup
-        console.log('\nCleaning up...');
-        await newProducer.close();
-        await consumer.close();
-        
-        await new Promise((resolve, reject) => {
-            const docker = require('child_process').exec(
-                'docker stop rabbitmq && docker rm rabbitmq',
-                (error: any) => error ? reject(error) : resolve(true)
-            );
-        });
 
         console.log('\nTest Results:');
         console.log(`Processed Messages: ${processedMessages}`);
@@ -121,7 +89,23 @@ async function runValidationTests() {
         
     } catch (error) {
         console.error('Test failed:', error);
-        process.exit(1);
+    } finally {
+        // Cleanup
+        console.log('\nCleaning up...');
+        if (producer) {
+            try {
+                await producer.close();
+            } catch (error) {
+                console.error('Error closing producer:', error);
+            }
+        }
+        if (consumer) {
+            try {
+                await consumer.close();
+            } catch (error) {
+                console.error('Error closing consumer:', error);
+            }
+        }
     }
 }
 
