@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">私人助理</string>
+    <string name="hint_message">输入消息...</string>
+    <string name="btn_send">发送</string>
+</resources>
